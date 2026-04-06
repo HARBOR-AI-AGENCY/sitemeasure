@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SiteMeasure</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+
+  <!-- TOP NAV -->
+  <header class="topnav">
+    <div class="topnav-brand">
+      <span class="brand-icon">📐</span>
+      <span class="brand-name">SiteMeasure</span>
+      <span class="brand-tag">Enterprise</span>
+    </div>
+    <nav class="topnav-links" id="topnavLinks"></nav>
+    <div class="topnav-right">
+      <span class="app-ver">v2.0</span>
+    </div>
+  </header>
+
+  <!-- APP SHELL -->
+  <div class="app-shell" id="appShell">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- MODALS -->
+  <div class="modal-backdrop" id="modalBackdrop" onclick="UI.closeModal()"></div>
+  <div class="modal-container" id="modalContainer"></div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

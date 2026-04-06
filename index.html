@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>SiteMeasure — Field Measurement Tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand: #1a56a0; --brand-dark: #103d7a; --brand-light: #e8f0fb;
+      --text: #1a1a1a; --muted: #6b7280; --border: #e5e7eb;
+      --bg: #f3f6fb; --white: #fff; --radius: 12px;
+      --green: #166534; --green-bg: #dcfce7;
+      --yellow: #854d0e; --yellow-bg: #fef9c3;
+      --red: #dc2626; --red-bg: #fef2f2;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--brand); color: white;
+      padding: 13px 20px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .logo { display: flex; flex-direction: column; }
+    .logo .name { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.3px; }
+    .logo .sub  { font-size: 0.65rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .building-badge {
+      background: rgba(255,255,255,0.2); border-radius: 20px; padding: 4px 12px;
+      font-size: 0.75rem; font-weight: 600; max-width: 170px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .gear-btn { background: none; border: none; color: white; font-size: 1.15rem; cursor: pointer; opacity: 0.85; padding: 4px; }
+    .gear-btn:hover { opacity: 1; }
+
+    /* ── NAV ── */
+    .nav-tabs {
+      background: white; border-bottom: 1px solid var(--border);
+      display: flex; position: sticky; top: 52px; z-index: 90;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .nav-tabs::-webkit-scrollbar { display: none; }
+    .nav-tab {
+      flex: 1; min-width: 72px; padding: 11px 8px;
+      border: none; background: none; font-size: 0.82rem; font-weight: 600;
+      color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent;
+      transition: all 0.15s; white-space: nowrap;
+    }
+    .nav-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+
+    /* ── PANELS ── */
+    .tab-panel { display: none; padding: 16px; max-width: 720px; margin: 0 auto; padding-bottom: 40px; }
+    .tab-panel.active { display: block; }
+
+    /* ── CARDS ── */
+    .card { background: var(--white); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+    .card-title { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--brand); margin-bottom: 14px; }
+
+    /* ── FORMS ── */
+    .form-row { display: grid; gap: 10px; margin-bottom: 10px; }
+    .form-row.c2 { grid-template-columns: 1fr 1fr; }
+    .form-row.c3 { grid-template-columns: 1fr 1fr 1fr; }
+    label { display: block; font-size: 0.68rem; font-weight: 600; color: var(--muted); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.4px; }
+    input, select, textarea {
+      width: 100%; padding: 8px 11px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 0.9rem; color: var(--text);
+      background: var(--white); transition: border-color 0.15s; -webkit-appearance: none; appearance: none;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand); }
+    input[type="number"] { text-align: center; font-weight: 600; }
+    input[type="password"] { font-family: monospace; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 8px 15px; border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+      border: none; cursor: pointer; transition: all 0.15s; text-decoration: none;
+    }
+    .btn-primary { background: var(--brand); color: white; }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-outline { background: white; color: var(--brand); border: 1.5px solid var(--brand); }
+    .btn-outline:hover { background: var(--brand-light); }
+    .btn-danger  { background: var(--red-bg); color: var(--red); border: 1.5px solid #fecaca; }
+    .btn-sm { padding: 5px 11px; font-size: 0.76rem; }
+    .btn-xs { padding: 3px 8px; font-size: 0.7rem; }
+    .btn-add {
+      background: var(--brand-light); color: var(--brand); border: 1.5px dashed var(--brand);
+      width: 100%; justify-content: center; margin-top: 6px; padding: 7px;
+    }
+    .btn-add:hover { background: #d1e3f8; }
+    .rm { width: 30px; height: 32px; border: none; background: var(--red-bg); color: var(--red); border-radius: 6px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+    /* ── SECTION DIVIDER ── */
+    .sec { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin: 14px 0 8px; display: flex; align-items: center; gap: 8px; }
+    .sec::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── LIST ITEMS ── */
+    .list-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 14px; background: var(--white); border: 1.5px solid var(--border);
+      border-radius: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s;
+    }
+    .list-item:hover { border-color: var(--brand); }
+    .list-item.sel { border-color: var(--brand); background: var(--brand-light); }
+    .li-info { display: flex; flex-direction: column; gap: 2px; }
+    .li-name { font-weight: 600; font-size: 0.92rem; }
+    .li-sub  { font-size: 0.72rem; color: var(--muted); }
+    .li-acts { display: flex; gap: 4px; }
+
+    /* ── ROOM BLOCK ── */
+    .room-block { border: 1.5px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+    .room-block-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 8px; }
+    .room-name-inp { font-weight: 700; border: none; padding: 0; font-size: 0.95rem; background: transparent; flex: 1; }
+    .room-name-inp:focus { outline: none; border-bottom: 1.5px solid var(--brand); }
+
+    /* door/trim rows */
+    .dr { display: grid; grid-template-columns: 1fr 55px 60px 60px 30px; gap: 5px; align-items: end; margin-bottom: 7px; }
+    .tr { display: grid; grid-template-columns: 1fr 72px 72px 30px; gap: 5px; align-items: end; margin-bottom: 7px; }
+    .col-hdr { display: grid; gap: 5px; margin-bottom: 4px; }
+    .col-hdr span { font-size: 0.62rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; text-align: center; }
+    .col-hdr span:first-child { text-align: left; }
+
+    /* ── BADGES ── */
+    .badge { display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+    .bdg-dwg  { background: var(--yellow-bg); color: var(--yellow); }
+    .bdg-field{ background: var(--green-bg);  color: var(--green); }
+
+    /* ── FLOOR TABS ── */
+    .floor-tabs { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px; scrollbar-width: none; }
+    .floor-tabs::-webkit-scrollbar { display: none; }
+    .ftab { flex-shrink: 0; padding: 5px 13px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; border: 1.5px solid var(--border); background: var(--white); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+    .ftab.active { background: var(--brand); border-color: var(--brand); color: white; }
+    .ftab-add { border-style: dashed; }
+
+    /* ── UNITS GRID ── */
+    .units-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .unit-card {
+      border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 8px;
+      text-align: center; cursor: pointer; transition: all 0.15s; position: relative;
+    }
+    .unit-card:hover { border-color: var(--brand); }
+    .unit-card.has-tpl { border-color: var(--brand); background: var(--brand-light); }
+    .unit-num { font-weight: 700; font-size: 0.9rem; }
+    .unit-tpl { font-size: 0.65rem; color: var(--brand); margin-top: 3px; line-height: 1.2; }
+    .unit-del { position: absolute; top: 2px; right: 4px; background: none; border: none; color: #ccc; font-size: 0.85rem; cursor: pointer; line-height: 1; }
+    .unit-del:hover { color: var(--red); }
+
+    /* ── SUMMARY ── */
+    .sum-section-title { font-size: 0.78rem; font-weight: 700; color: var(--brand-dark); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 2px solid var(--brand-light); }
+    .sum-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-bottom: 16px; }
+    .sum-table th { text-align: left; padding: 6px 8px; background: var(--bg); font-size: 0.68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; }
+    .sum-table td { padding: 7px 8px; border-bottom: 1px solid var(--border); }
+    .sum-table tr:last-child td { border-bottom: none; }
+    .dim { color: var(--muted); font-size: 0.8rem; }
+    .grand-box { background: var(--brand); color: white; border-radius: 10px; padding: 16px; margin-top: 8px; }
+    .grand-box .gl { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.85rem; }
+    .grand-box .gl.total { border-top: 1px solid rgba(255,255,255,0.3); padding-top: 10px; margin-top: 6px; font-size: 1rem; font-weight: 700; }
+    .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; font-size: 0.82rem; color: var(--muted); }
+    .toggle-row input[type=checkbox] { width: auto; accent-color: var(--brand); }
+
+    /* ── CALC BOX ── */
+    .calc-box { background: var(--brand-light); border: 1.5px solid var(--brand); border-radius: 10px; padding: 12px 14px; margin-top: 12px; }
+    .calc-box .ct { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--brand-dark); margin-bottom: 8px; }
+    .cr { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 4px; }
+    .cr.tot { font-weight: 700; border-top: 1px solid var(--brand); padding-top: 6px; margin-top: 3px; color: var(--brand-dark); }
+
+    /* ── OVERLAYS / MODALS ── */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 300; padding: 16px; overflow-y: auto; align-items: flex-start; justify-content: center; }
+    .overlay.open { display: flex; }
+    .modal { background: white; border-radius: var(--radius); width: 100%; max-width: 560px; margin: auto; overflow: hidden; }
+    .modal-hdr { background: var(--brand); color: white; padding: 13px 18px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-hdr h2 { font-size: 0.92rem; font-weight: 700; }
+    .modal-close { background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; line-height: 1; }
+    .modal-body { padding: 18px; }
+    .modal-foot { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* ── UPLOAD ZONE ── */
+    .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 28px; text-align: center; cursor: pointer; transition: all 0.15s; margin-bottom: 14px; }
+    .upload-zone:hover, .upload-zone.drag { border-color: var(--brand); background: var(--brand-light); }
+    .upload-zone .ico { font-size: 2rem; margin-bottom: 6px; }
+    .upload-zone p { font-size: 0.82rem; color: var(--muted); }
+    .upload-zone input[type=file] { display: none; }
+    .preview-img { max-width: 100%; border-radius: 8px; margin-bottom: 14px; max-height: 260px; object-fit: contain; display: block; }
+
+    /* AI results */
+    .ai-room { margin-bottom: 14px; }
+    .ai-room h4 { font-size: 0.82rem; font-weight: 700; color: var(--brand); margin-bottom: 7px; }
+    .ai-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 9px; background: var(--bg); border-radius: 6px; margin-bottom: 4px; font-size: 0.82rem; }
+    .ai-item input { width: 60px; padding: 3px 6px; font-size: 0.82rem; text-align: center; }
+
+    /* ── SPINNER ── */
+    .spin { display: inline-block; width: 18px; height: 18px; border: 3px solid rgba(255,255,255,0.35); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TOAST ── */
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111; color: white; padding: 9px 20px; border-radius: 20px; font-size: 0.82rem; font-weight: 500; z-index: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; }
+    .toast.show { opacity: 1; }
+
+    /* ── MISC ── */
+    .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .empty { text-align: center; padding: 36px 20px; color: var(--muted); }
+    .empty .ico { font-size: 2.2rem; margin-bottom: 10px; }
+    .empty p { font-size: 0.85rem; }
+    .info-box { background: var(--brand-light); border-left: 3px solid var(--brand); border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; color: var(--brand-dark); margin-bottom: 14px; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    @media print {
+      header, .nav-tabs, .acts, .btn-add, .rm, .gear-btn { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="name">SiteMeasure</span>
+    <span class="sub">Field Measurement Tool</span>
+  </div>
+  <div class="header-right">
+    <div class="building-badge" id="buildingBadge">New Building</div>
+    <button class="gear-btn" onclick="openSettings()" title="Settings">⚙️</button>
+  </div>
+</header>
+
+<nav class="nav-tabs">
+  <button class="nav-tab active" data-tab="setup"     onclick="setTab('setup')">⚙ Setup</button>
+  <button class="nav-tab"        data-tab="templates" onclick="setTab('templates')">📐 Templates</button>
+  <button class="nav-tab"        data-tab="floors"    onclick="setTab('floors')">🏢 Floors</button>
+  <button class="nav-tab"        data-tab="summary"   onclick="setTab('summary')">📋 Summary</button>
+</nav>
+
+<div class="tab-panel active" id="tab-setup"></div>
+<div class="tab-panel"        id="tab-templates"></div>
+<div class="tab-panel"        id="tab-floors"></div>
+<div class="tab-panel"        id="tab-summary"></div>
+
+<!-- AI TAKEOFF MODAL -->
+<div class="overlay" id="aiOverlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="aiModalTitle">AI Takeoff from Drawing</h2>
+      <button class="modal-close" onclick="closeModal('aiOverlay')">×</button>
+    </div>
+    <div class="modal-body" id="aiModalBody"></div>
+    <div class="modal-foot" id="aiModalFoot"></div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Settings</h2>
+      <button class="modal-close" onclick="closeModal('settingsOverlay')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div>
+          <label>Anthropic API Key</label>
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+          <p style="font-size:0.72rem;color:var(--muted);margin-top:4px">Stored locally in your browser. Required for AI drawing takeoff.</p>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- UNIT MODAL -->
+<div class="overlay" id="unitOverlay">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2>Edit Unit</h2>
+      <button class="modal-close" onclick="closeModal('unitOverlay')">×</button>
+    </div>
+    <div class="modal-body" id="unitModalBody"></div>
+    <div class="modal-foot" id="unitModalFoot"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const DOOR_TYPES = ['Interior Slab','Interior Prehung','Barn Door','French Door','Bifold','Bypass','Fire Rated','Exterior'];
+const TRIM_TYPES = ['Baseboard','Door Casing','Crown Moulding','Window Casing','Door Stop','Backband','Architrave','Handrail'];
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let S = {
+  building: { name: '', address: '' },
+  wasteFactor: 1.10,
+  templates: [],  // suite floor plan types
+  floors: []      // building floors
+};
+
+let UI = {
+  tab: 'setup',
+  activeTplId: null,
+  activeFloorId: null,
+  aiTarget: null,   // { type: 'template'|'floor', id }
+  aiImage: null,    // { dataUrl, mediaType }
+  aiResults: null,  // parsed rooms from Claude
+  showDwg: false    // summary: show drawing column
+};
+
+// ═══════════════════════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════════════════════
+function save() { localStorage.setItem('sm_state', JSON.stringify(S)); }
+
+function loadState() {
+  try {
+    const d = localStorage.getItem('sm_state');
+    if (d) S = JSON.parse(d);
+  } catch(e) {}
+}
+
+function getApiKey() { return localStorage.getItem('sm_apikey') || ''; }
+function setApiKey(k) { localStorage.setItem('sm_apikey', k); }
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function uid() { return '_' + Math.random().toString(36).slice(2, 9); }
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function num(v) { const n = parseFloat(v); return isNaN(n) ? null : n; }
+function intOrNull(v) { const n = parseInt(v); return isNaN(n) ? null : n; }
+function eff(field, dwg) { return field ?? dwg ?? 0; }
+
+function toast(msg, ms = 2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+
+function newRoom(name) {
+  return { id: uid(), name: name || 'Room', doors: [], trim: [], notes: '' };
+}
+function newDoor() { return { id: uid(), type: 'Interior Slab', width: 32, qty_dwg: null, qty_field: null }; }
+function newTrim() { return { id: uid(), type: 'Baseboard', lf_dwg: null, lf_field: null }; }
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function setTab(tab) {
+  UI.tab = tab;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+  render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MASTER RENDER
+// ═══════════════════════════════════════════════════════════
+function render() {
+  document.getElementById('buildingBadge').textContent = S.building.name || 'New Building';
+  if (UI.tab === 'setup')     renderSetup();
+  if (UI.tab === 'templates') renderTemplates();
+  if (UI.tab === 'floors')    renderFloors();
+  if (UI.tab === 'summary')   renderSummary();
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETUP TAB
+// ═══════════════════════════════════════════════════════════
+function renderSetup() {
+  const totalUnits = S.floors.reduce((a, f) => a + f.units.length, 0);
+  document.getElementById('tab-setup').innerHTML = `
+    <div class="card">
+      <div class="card-title">Building Information</div>
+      <div class="form-row">
+        <div>
+          <label>Building Name</label>
+          <input type="text" value="${esc(S.building.name)}" placeholder="e.g. Riverside Condos"
+            onchange="S.building.name=this.value; save(); render()" />
+        </div>
+      </div>
+      <div class="form-row c2">
+        <div>
+          <label>Site Address</label>
+          <input type="text" value="${esc(S.building.address)}" placeholder="123 Main St"
+            onchange="S.building.address=this.value; save()" />
+        </div>
+        <div>
+          <label>Waste Factor (trim)</label>
+          <select onchange="S.wasteFactor=parseFloat(this.value); save()">
+            <option value="1.05"  ${S.wasteFactor==1.05 ?'selected':''}>5% — Simple</option>
+            <option value="1.10"  ${S.wasteFactor==1.10 ?'selected':''}>10% — Standard</option>
+            <option value="1.15"  ${S.wasteFactor==1.15 ?'selected':''}>15% — Complex</option>
+            <option value="1.20"  ${S.wasteFactor==1.20 ?'selected':''}>20% — High</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Project Overview</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">
+        ${statBox('📐', S.templates.length, 'Suite Types')}
+        ${statBox('🏢', S.floors.length, 'Floors')}
+        ${statBox('🚪', totalUnits, 'Units')}
+      </div>
+      <hr/>
+      <p style="font-size:0.82rem;color:var(--muted);line-height:1.6">
+        <strong>Workflow:</strong><br>
+        1. <strong>Templates</strong> — define each unique suite layout. Upload a suite drawing for AI takeoff.<br>
+        2. <strong>Floors</strong> — assign templates to units. Add common areas (hallways, laundry, amenities) per floor. Upload floor drawings for AI takeoff.<br>
+        3. <strong>Summary</strong> — full material rollup: suites + common areas, as-built primary with drawing comparison.
+      </p>
+    </div>
+  `;
+}
+
+function statBox(ico, val, label) {
+  return `<div style="background:var(--brand-light);border-radius:10px;padding:14px 8px">
+    <div style="font-size:1.5rem">${ico}</div>
+    <div style="font-size:1.5rem;font-weight:700;color:var(--brand)">${val}</div>
+    <div style="font-size:0.72rem;color:var(--muted)">${label}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TEMPLATES TAB
+// ═══════════════════════════════════════════════════════════
+function renderTemplates() {
+  const tpl = UI.activeTplId ? S.templates.find(t => t.id === UI.activeTplId) : null;
+  document.getElementById('tab-templates').innerHTML = `
+    <div class="card">
+      <div class="card-title">Suite Floor Plan Templates</div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">
+        Each template defines a unique suite layout. Units on each floor are assigned a template.
+      </p>
+      ${S.templates.map(t => `
+        <div class="list-item ${t.id===UI.activeTplId?'sel':''}" onclick="UI.activeTplId='${t.id}';render()">
+          <div class="li-info">
+            <span class="li-name">${esc(t.name)}</span>
+            <span class="li-sub">${t.rooms.length} room${t.rooms.length!==1?'s':''} · ${countUnitsForTemplate(t.id)} unit${countUnitsForTemplate(t.id)!==1?'s':''} assigned</span>
+          </div>
+          <div class="li-acts">
+            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteTpl('${t.id}')">Delete</button>
+          </div>
+        </div>
+      `).join('')}
+      <button class="btn btn-add" onclick="addTpl()">+ New Suite Template</button>
+    </div>
+    ${tpl ? renderTplEditor(tpl) : ''}
+  `;
+}
+
+function countUnitsForTemplate(tplId) {
+  return S.floors.reduce((a, f) => a + f.units.filter(u => u.templateId === tplId).length, 0);
+}
+
+function addTpl() {
+  const t = { id: uid(), name: 'New Suite Type', rooms: [newRoom('Living Room')] };
+  S.templates.push(t);
+  UI.activeTplId = t.id;
+  save(); render();
+}
+
+function deleteTpl(id) {
+  if (!confirm('Delete this template? Units assigned to it will lose their template assignment.')) return;
+  S.templates = S.templates.filter(t => t.id !== id);
+  S.floors.forEach(f => f.units.forEach(u => { if (u.templateId === id) u.templateId = null; }));
+  if (UI.activeTplId === id) UI.activeTplId = S.templates[0]?.id || null;
+  save(); render();
+}
+
+function renderTplEditor(tpl) {
+  return `
+    <div class="card">
+      <div class="form-row c2" style="margin-bottom:14px">
+        <div>
+          <label>Template Name</label>
+          <input type="text" value="${esc(tpl.name)}"
+            onchange="getTpl('${tpl.id}').name=this.value;save();render()" />
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-outline" style="width:100%" onclick="openAIModal('template','${tpl.id}')">
+            🤖 AI Takeoff from Suite Drawing
+          </button>
+        </div>
+      </div>
+      <div class="info-box">Drawing quantities are pre-populated by AI. Field quantities are entered on site. Summary uses field if available, otherwise drawing.</div>
+      ${renderRoomEditor('template', tpl.id, tpl.rooms)}
+      <button class="btn btn-add" onclick="addRoom('template','${tpl.id}')">+ Add Room</button>
+    </div>
+  `;
+}
+
+function getTpl(id) { return S.templates.find(t => t.id === id); }
+function getFloor(id) { return S.floors.find(f => f.id === id); }
+
+// ═══════════════════════════════════════════════════════════
+// ROOM EDITOR (shared: templates + floor common areas)
+// ═══════════════════════════════════════════════════════════
+function getRoomsArr(type, id) {
+  return type === 'template' ? getTpl(id)?.rooms : getFloor(id)?.commonRooms;
+}
+
+function renderRoomEditor(type, id, rooms) {
+  if (!rooms || rooms.length === 0) return '';
+  return rooms.map(room => `
+    <div class="room-block">
+      <div class="room-block-hdr">
+        <input class="room-name-inp" type="text" value="${esc(room.name)}"
+          onchange="updateRoomName('${type}','${id}','${room.id}',this.value)" />
+        <button class="btn btn-danger btn-xs" onclick="removeRoom('${type}','${id}','${room.id}')">Remove</button>
+      </div>
+
+      <div class="sec">🚪 Doors</div>
+      <div class="col-hdr dr" style="margin-bottom:2px">
+        <span>Type</span><span>W (in)</span><span>Dwg Qty</span><span>Field Qty</span><span></span>
+      </div>
+      ${room.doors.map(d => `
+        <div class="dr">
+          <select onchange="updDoor('${type}','${id}','${room.id}','${d.id}','type',this.value)">
+            ${DOOR_TYPES.map(t=>`<option ${t===d.type?'selected':''}>${t}</option>`).join('')}
+          </select>
+          <input type="number" value="${d.width??''}" placeholder="32"
+            onchange="updDoor('${type}','${id}','${room.id}','${d.id}','width',this.value)" />
+          <input type="number" value="${d.qty_dwg??''}" placeholder="—"
+            onchange="updDoor('${type}','${id}','${room.id}','${d.id}','qty_dwg',this.value)" />
+          <input type="number" value="${d.qty_field??''}" placeholder="—"
+            onchange="updDoor('${type}','${id}','${room.id}','${d.id}','qty_field',this.value)" />
+          <button class="rm" onclick="removeDoor('${type}','${id}','${room.id}','${d.id}')">×</button>
+        </div>
+      `).join('')}
+      <button class="btn btn-add" onclick="addDoor('${type}','${id}','${room.id}')">+ Add Door</button>
+
+      <div class="sec" style="margin-top:12px">📏 Trim (Linear Feet)</div>
+      <div class="col-hdr tr" style="margin-bottom:2px">
+        <span>Type</span><span>Dwg LF</span><span>Field LF</span><span></span>
+      </div>
+      ${room.trim.map(t => `
+        <div class="tr">
+          <select onchange="updTrim('${type}','${id}','${room.id}','${t.id}','type',this.value)">
+            ${TRIM_TYPES.map(tt=>`<option ${tt===t.type?'selected':''}>${tt}</option>`).join('')}
+          </select>
+          <input type="number" value="${t.lf_dwg??''}" placeholder="—"
+            onchange="updTrim('${type}','${id}','${room.id}','${t.id}','lf_dwg',this.value)" />
+          <input type="number" value="${t.lf_field??''}" placeholder="—"
+            onchange="updTrim('${type}','${id}','${room.id}','${t.id}','lf_field',this.value)" />
+          <button class="rm" onclick="removeTrim('${type}','${id}','${room.id}','${t.id}')">×</button>
+        </div>
+      `).join('')}
+      <button class="btn btn-add" onclick="addTrim('${type}','${id}','${room.id}')">+ Add Trim</button>
+
+      <div style="margin-top:12px">
+        <label>Notes</label>
+        <textarea rows="2" style="resize:vertical" placeholder="Site conditions, special requirements..."
+          onchange="updRoomNotes('${type}','${id}','${room.id}',this.value)">${esc(room.notes)}</textarea>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Room mutations
+function addRoom(type, id) {
+  getRoomsArr(type, id).push(newRoom('New Room'));
+  save(); render();
+}
+function removeRoom(type, id, roomId) {
+  const arr = getRoomsArr(type, id);
+  const i = arr.findIndex(r => r.id === roomId);
+  if (i >= 0) arr.splice(i, 1);
+  save(); render();
+}
+function updateRoomName(type, id, roomId, val) {
+  const r = getRoomsArr(type, id).find(r => r.id === roomId);
+  if (r) r.name = val; save();
+}
+function updRoomNotes(type, id, roomId, val) {
+  const r = getRoomsArr(type, id).find(r => r.id === roomId);
+  if (r) r.notes = val; save();
+}
+
+// Door mutations
+function addDoor(type, id, roomId) {
+  const r = getRoomsArr(type, id).find(r => r.id === roomId);
+  if (r) { r.doors.push(newDoor()); save(); render(); }
+}
+function removeDoor(type, id, roomId, doorId) {
+  const r = getRoomsArr(type, id).find(r => r.id === roomId);
+  if (r) { r.doors = r.doors.filter(d => d.id !== doorId); save(); render(); }
+}
+function updDoor(type, id, roomId, doorId, field, val) {
+  const r = getRoomsArr(type, id).find(r => r.id === roomId);
+  const d = r?.doors.find(d => d.id === doorId);
+  if (!d) return;
+  if (field === 'type') d.type = val;
+  else if (field === 'width') d.width = intOrNull(val);
+  else if (field === 'qty_dwg') d.qty_dwg = intOrNull(val);
+  else if (field === 'qty_field') d.qty_field = intOrNull(val);
+  save();
+}
+
+// Trim mutations
+function addTrim(type, id, roomId) {
+  const r = getRoomsArr(type, id).find(r => r.id === roomId);
+  if (r) { r.trim.push(newTrim()); save(); render(); }
+}
+function removeTrim(type, id, roomId, trimId) {
+  const r = getRoomsArr(type, id).find(r => r.id === roomId);
+  if (r) { r.trim = r.trim.filter(t => t.id !== trimId); save(); render(); }
+}
+function updTrim(type, id, roomId, trimId, field, val) {
+  const r = getRoomsArr(type, id).find(r => r.id === roomId);
+  const t = r?.trim.find(t => t.id === trimId);
+  if (!t) return;
+  if (field === 'type') t.type = val;
+  else if (field === 'lf_dwg') t.lf_dwg = num(val);
+  else if (field === 'lf_field') t.lf_field = num(val);
+  save();
+}
+
+// ═══════════════════════════════════════════════════════════
+// FLOORS TAB
+// ═══════════════════════════════════════════════════════════
+function renderFloors() {
+  if (!UI.activeFloorId && S.floors.length > 0) UI.activeFloorId = S.floors[0].id;
+  const floor = UI.activeFloorId ? getFloor(UI.activeFloorId) : null;
+
+  document.getElementById('tab-floors').innerHTML = `
+    <div class="floor-tabs">
+      ${S.floors.map(f => `
+        <button class="ftab ${f.id===UI.activeFloorId?'active':''}" onclick="UI.activeFloorId='${f.id}';render()">${esc(f.name)}</button>
+      `).join('')}
+      <button class="ftab ftab-add" onclick="addFloor()">+ Floor</button>
+    </div>
+    ${floor ? renderFloorEditor(floor) : `
+      <div class="empty"><div class="ico">🏢</div><p>No floors yet. Add a floor to get started.</p></div>
+    `}
+  `;
+}
+
+function addFloor() {
+  const n = S.floors.length + 1;
+  const f = { id: uid(), name: `Floor ${n}`, units: [], commonRooms: [] };
+  S.floors.push(f);
+  UI.activeFloorId = f.id;
+  save(); render();
+}
+
+function deleteFloor(id) {
+  if (!confirm('Delete this floor and all its data?')) return;
+  S.floors = S.floors.filter(f => f.id !== id);
+  UI.activeFloorId = S.floors[0]?.id || null;
+  save(); render();
+}
+
+function duplicateFloor(id) {
+  const src = getFloor(id);
+  if (!src) return;
+  const n = S.floors.length + 1;
+  const copy = {
+    id: uid(),
+    name: `Floor ${n}`,
+    units: src.units.map(u => ({ id: uid(), name: u.name, templateId: u.templateId })),
+    commonRooms: JSON.parse(JSON.stringify(src.commonRooms)).map(r => ({
+      ...r, id: uid(),
+      doors: r.doors.map(d => ({...d, id: uid()})),
+      trim:  r.trim.map(t => ({...t, id: uid()}))
+    }))
+  };
+  const idx = S.floors.findIndex(f => f.id === id);
+  S.floors.splice(idx + 1, 0, copy);
+  UI.activeFloorId = copy.id;
+  save(); render();
+  toast(`Duplicated to ${copy.name}`);
+}
+
+function renderFloorEditor(floor) {
+  return `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="flex:1;min-width:150px">
+          <label>Floor Name</label>
+          <input type="text" value="${esc(floor.name)}"
+            onchange="getFloor('${floor.id}').name=this.value;save();render()" />
+        </div>
+        <div style="display:flex;gap:7px;margin-top:18px">
+          <button class="btn btn-outline btn-sm" onclick="duplicateFloor('${floor.id}')">📋 Duplicate Floor</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteFloor('${floor.id}')">🗑 Delete</button>
+        </div>
+      </div>
+
+      <div class="card-title">Suite Units</div>
+      <div class="units-grid" id="unitsGrid">
+        ${floor.units.map(u => {
+          const tpl = u.templateId ? getTpl(u.templateId) : null;
+          return `<div class="unit-card ${tpl?'has-tpl':''}" onclick="openUnitModal('${floor.id}','${u.id}')">
+            <button class="unit-del" onclick="event.stopPropagation();removeUnit('${floor.id}','${u.id}')">×</button>
+            <div class="unit-num">${esc(u.name)}</div>
+            <div class="unit-tpl">${tpl ? esc(tpl.name) : 'No template'}</div>
+          </div>`;
+        }).join('')}
+        <div class="unit-card" style="border-style:dashed;color:var(--brand)" onclick="addUnit('${floor.id}')">
+          <div style="font-size:1.2rem">+</div>
+          <div style="font-size:0.72rem">Add Unit</div>
+        </div>
+      </div>
+
+      <hr/>
+      <div class="card-title" style="margin-top:4px">Common Areas</div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">Hallways, laundry, amenity rooms, suite entrance doors, stairwells, etc.</p>
+      <button class="btn btn-outline btn-sm" style="margin-bottom:12px" onclick="openAIModal('floor','${floor.id}')">
+        🤖 AI Takeoff from Floor Drawing
+      </button>
+      ${renderRoomEditor('floor', floor.id, floor.commonRooms)}
+      <button class="btn btn-add" onclick="addRoom('floor','${floor.id}')">+ Add Common Area</button>
+    </div>
+  `;
+}
+
+// Unit management
+function addUnit(floorId) {
+  const floor = getFloor(floorId);
+  const n = floor.units.length + 1;
+  const u = { id: uid(), name: String(n).padStart(2,'0'), templateId: null };
+  floor.units.push(u);
+  save(); render();
+  openUnitModal(floorId, u.id);
+}
+
+function removeUnit(floorId, unitId) {
+  const floor = getFloor(floorId);
+  floor.units = floor.units.filter(u => u.id !== unitId);
+  save(); render();
+}
+
+function openUnitModal(floorId, unitId) {
+  const floor = getFloor(floorId);
+  const unit = floor.units.find(u => u.id === unitId);
+  if (!unit) return;
+
+  document.getElementById('unitModalBody').innerHTML = `
+    <div class="form-row">
+      <div>
+        <label>Unit Number / Name</label>
+        <input type="text" id="uName" value="${esc(unit.name)}" placeholder="e.g. 101" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>Floor Plan Template</label>
+        <select id="uTpl">
+          <option value="">— No template assigned —</option>
+          ${S.templates.map(t => `<option value="${t.id}" ${t.id===unit.templateId?'selected':''}>${esc(t.name)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+  `;
+  document.getElementById('unitModalFoot').innerHTML = `
+    <button class="btn btn-danger btn-sm" onclick="removeUnit('${floorId}','${unitId}');closeModal('unitOverlay')">Delete Unit</button>
+    <button class="btn btn-primary" onclick="saveUnit('${floorId}','${unitId}')">Save</button>
+  `;
+  openModal('unitOverlay');
+}
+
+function saveUnit(floorId, unitId) {
+  const floor = getFloor(floorId);
+  const unit = floor.units.find(u => u.id === unitId);
+  if (!unit) return;
+  unit.name = document.getElementById('uName').value || unit.name;
+  unit.templateId = document.getElementById('uTpl').value || null;
+  save(); render();
+  closeModal('unitOverlay');
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUMMARY TAB
+// ═══════════════════════════════════════════════════════════
+function renderSummary() {
+  const wf = S.wasteFactor;
+  const showDwg = UI.showDwg;
+
+  // Aggregate suite materials by template
+  const tplMats = {}; // tplId -> { doors: {key: {eff, dwg}}, trim: {key: {eff, dwg}} }
+  const tplCounts = {}; // tplId -> count
+
+  S.floors.forEach(f => {
+    f.units.forEach(u => {
+      if (!u.templateId) return;
+      tplCounts[u.templateId] = (tplCounts[u.templateId] || 0) + 1;
+    });
+  });
+
+  S.templates.forEach(tpl => {
+    const count = tplCounts[tpl.id] || 0;
+    if (count === 0) return;
+    const dm = {}, tm = {};
+    tpl.rooms.forEach(room => {
+      room.doors.forEach(d => {
+        const key = `${d.type} ${d.width || '?'}"`;
+        const effQ = eff(d.qty_field, d.qty_dwg) * count;
+        const dwgQ = (d.qty_dwg ?? 0) * count;
+        if (!dm[key]) dm[key] = { eff: 0, dwg: 0 };
+        dm[key].eff += effQ; dm[key].dwg += dwgQ;
+      });
+      room.trim.forEach(t => {
+        const effLF = eff(t.lf_field, t.lf_dwg) * count;
+        const dwgLF = (t.lf_dwg ?? 0) * count;
+        if (!tm[t.type]) tm[t.type] = { eff: 0, dwg: 0 };
+        tm[t.type].eff += effLF; tm[t.type].dwg += dwgLF;
+      });
+    });
+    tplMats[tpl.id] = { doors: dm, trim: tm };
+  });
+
+  // Aggregate common area materials by floor
+  const floorMats = {}; // floorId -> { doors, trim }
+  S.floors.forEach(f => {
+    const dm = {}, tm = {};
+    f.commonRooms.forEach(room => {
+      room.doors.forEach(d => {
+        const key = `${d.type} ${d.width || '?'}"`;
+        if (!dm[key]) dm[key] = { eff: 0, dwg: 0 };
+        dm[key].eff += eff(d.qty_field, d.qty_dwg);
+        dm[key].dwg += d.qty_dwg ?? 0;
+      });
+      room.trim.forEach(t => {
+        if (!tm[t.type]) tm[t.type] = { eff: 0, dwg: 0 };
+        tm[t.type].eff += eff(t.lf_field, t.lf_dwg);
+        tm[t.type].dwg += t.lf_dwg ?? 0;
+      });
+    });
+    floorMats[f.id] = { doors: dm, trim: tm };
+  });
+
+  // Grand totals
+  const grandDoors = {}, grandTrim = {};
+  [...Object.values(tplMats), ...Object.values(floorMats)].forEach(({ doors, trim }) => {
+    Object.entries(doors).forEach(([k, v]) => {
+      if (!grandDoors[k]) grandDoors[k] = 0;
+      grandDoors[k] += v.eff;
+    });
+    Object.entries(trim).forEach(([k, v]) => {
+      if (!grandTrim[k]) grandTrim[k] = 0;
+      grandTrim[k] += v.eff;
+    });
+  });
+
+  const thDwg = showDwg ? '<th class="dim">Drawing</th>' : '';
+
+  function doorTable(dm) {
+    if (!Object.keys(dm).length) return '<p style="font-size:0.8rem;color:var(--muted)">No doors entered.</p>';
+    return `<table class="sum-table">
+      <thead><tr><th>Door Type</th><th>As-Built</th>${thDwg}</tr></thead>
+      <tbody>${Object.entries(dm).map(([k, v]) => `
+        <tr>
+          <td>${k}</td>
+          <td><strong>${v.eff}</strong> units</td>
+          ${showDwg ? `<td class="dim">${v.dwg} dwg</td>` : ''}
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  function trimTable(tm) {
+    if (!Object.keys(tm).length) return '<p style="font-size:0.8rem;color:var(--muted)">No trim entered.</p>';
+    return `<table class="sum-table">
+      <thead><tr><th>Trim Type</th><th>As-Built LF</th><th>+ ${Math.round((wf-1)*100)}% Waste</th>${showDwg ? '<th class="dim">Drawing</th>' : ''}</tr></thead>
+      <tbody>${Object.entries(tm).map(([k, v]) => `
+        <tr>
+          <td>${k}</td>
+          <td>${v.eff} LF</td>
+          <td><strong>${Math.ceil(v.eff * wf)} LF</strong></td>
+          ${showDwg ? `<td class="dim">${v.dwg} dwg</td>` : ''}
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  }
+
+  const totalDoors = Object.values(grandDoors).reduce((a,b)=>a+b,0);
+  const totalTrimRaw = Object.values(grandTrim).reduce((a,b)=>a+b,0);
+  const totalTrimWaste = Math.ceil(totalTrimRaw * wf);
+
+  document.getElementById('tab-summary').innerHTML = `
+    <div class="toggle-row">
+      <input type="checkbox" id="showDwgChk" ${showDwg?'checked':''} onchange="UI.showDwg=this.checked;render()" />
+      <label for="showDwgChk" style="margin:0;text-transform:none;font-size:0.82rem;color:var(--text)">Show drawing quantities for comparison</label>
+    </div>
+
+    <!-- SUITE MATERIALS -->
+    ${S.templates.filter(t => tplCounts[t.id] > 0).map(t => `
+      <div class="card">
+        <div class="sum-section-title">📐 ${esc(t.name)} — ${tplCounts[t.id]} Unit${tplCounts[t.id]!==1?'s':''}</div>
+        ${doorTable(tplMats[t.id]?.doors || {})}
+        ${trimTable(tplMats[t.id]?.trim || {})}
+      </div>
+    `).join('')}
+
+    <!-- COMMON AREAS -->
+    ${S.floors.filter(f => f.commonRooms.length > 0).map(f => `
+      <div class="card">
+        <div class="sum-section-title">🏢 ${esc(f.name)} — Common Areas</div>
+        ${doorTable(floorMats[f.id]?.doors || {})}
+        ${trimTable(floorMats[f.id]?.trim || {})}
+      </div>
+    `).join('')}
+
+    <!-- GRAND TOTAL -->
+    <div class="card">
+      <div class="card-title">Grand Total — All Materials</div>
+      ${doorTable(grandDoors)}
+      ${trimTable(grandTrim)}
+      <div class="grand-box">
+        <div class="gl"><span>Total Doors</span><span>${totalDoors} units</span></div>
+        <div class="gl"><span>Total Trim (measured)</span><span>${totalTrimRaw} LF</span></div>
+        <div class="gl total"><span>Total Trim + ${Math.round((wf-1)*100)}% Waste</span><span>${totalTrimWaste} LF</span></div>
+      </div>
+    </div>
+    <div class="acts">
+      <button class="btn btn-primary" onclick="window.print()">🖨 Print / Export PDF</button>
+    </div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════
+// AI TAKEOFF
+// ═══════════════════════════════════════════════════════════
+function openAIModal(type, id) {
+  const name = type === 'template'
+    ? getTpl(id)?.name
+    : getFloor(id)?.name + ' Common Areas';
+
+  UI.aiTarget = { type, id };
+  UI.aiImage = null;
+  UI.aiResults = null;
+
+  document.getElementById('aiModalTitle').textContent = `AI Takeoff — ${name}`;
+  document.getElementById('aiModalBody').innerHTML = renderAIStep1();
+  document.getElementById('aiModalFoot').innerHTML = '';
+  openModal('aiOverlay');
+}
+
+function renderAIStep1() {
+  return `
+    <div class="info-box">Upload a clean CAD export or high-resolution PDF screenshot of the floor plan. The AI will identify rooms, doors, and trim requirements.</div>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInp').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="event.preventDefault();this.classList.remove('drag');handleDrop(event)">
+      <div class="ico">📄</div>
+      <p>Click to upload or drag & drop<br><small>PNG, JPG, WEBP</small></p>
+      <input type="file" id="fileInp" accept="image/png,image/jpeg,image/webp,image/gif"
+        onchange="handleFileSelect(this.files[0])" />
+    </div>
+  `;
+}
+
+function handleDrop(e) {
+  const file = e.dataTransfer.files[0];
+  if (file) handleFileSelect(file);
+}
+
+function handleFileSelect(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const mediaType = file.type || 'image/png';
+    UI.aiImage = { dataUrl, mediaType };
+    showImagePreview(dataUrl);
+  };
+  reader.readAsDataURL(file);
+}
+
+function showImagePreview(dataUrl) {
+  document.getElementById('aiModalBody').innerHTML = `
+    <img src="${dataUrl}" class="preview-img" />
+    <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">Drawing loaded. Click Analyze to extract rooms, doors, and trim quantities.</p>
+  `;
+  document.getElementById('aiModalFoot').innerHTML = `
+    <button class="btn btn-outline" onclick="UI.aiImage=null;document.getElementById('aiModalBody').innerHTML=renderAIStep1();document.getElementById('aiModalFoot').innerHTML=''">← Re-upload</button>
+    <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeDrawing()">🤖 Analyze Drawing</button>
+  `;
+}
+
+async function analyzeDrawing() {
+  const key = getApiKey();
+  if (!key) {
+    toast('Add your Anthropic API key in Settings (⚙️) first.');
+    return;
+  }
+  if (!UI.aiImage) return;
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.innerHTML = `<span class="spin"></span> Analyzing...`;
+  btn.disabled = true;
+
+  const isFloor = UI.aiTarget.type === 'floor';
+  const prompt = isFloor
+    ? `You are analyzing a building floor plan for a construction material takeoff. Focus on COMMON AREAS: hallways, corridors, laundry rooms, amenity rooms, lobby, stairwells, and suite entrance doors. Do NOT include individual suite interiors.
+
+Return ONLY valid JSON with this structure (no markdown, no explanation):
+{
+  "rooms": [
+    {
+      "name": "area name (e.g. Main Corridor, Laundry Room)",
+      "doors": [{"type": "door type", "width_inches": 36, "qty": 1}],
+      "trim": [{"type": "trim type", "lf": 45}]
+    }
+  ],
+  "notes": "any observations"
+}
+
+Valid door types (use exactly): ${DOOR_TYPES.join(', ')}
+Valid trim types (use exactly): ${TRIM_TYPES.join(', ')}
+Estimate trim LF from visible corridor/room dimensions. Suite entrance doors are typically Fire Rated or Exterior type.`
+
+    : `You are analyzing a residential suite floor plan for a construction material takeoff. Identify all rooms and extract doors and trim requirements for each room.
+
+Return ONLY valid JSON with this structure (no markdown, no explanation):
+{
+  "rooms": [
+    {
+      "name": "room name (e.g. Living Room, Master Bedroom)",
+      "doors": [{"type": "door type", "width_inches": 32, "qty": 1}],
+      "trim": [{"type": "trim type", "lf": 45}]
+    }
+  ],
+  "notes": "any observations"
+}
+
+Valid door types (use exactly): ${DOOR_TYPES.join(', ')}
+Valid trim types (use exactly): ${TRIM_TYPES.join(', ')}
+Standard interior door widths: 24", 28", 30", 32", 34", 36". Estimate baseboard LF from room perimeter minus door openings (~7 LF per door). Include Door Casing only if not already in baseboard.`;
+
+  const base64 = UI.aiImage.dataUrl.split(',')[1];
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-6',
+        max_tokens: 2048,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: UI.aiImage.mediaType, data: base64 } },
+            { type: 'text', text: prompt }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `API error ${res.status}`);
+
+    const rawText = data.content[0]?.text || '';
+    // Extract JSON even if wrapped in backticks
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No valid JSON in response');
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    UI.aiResults = parsed.rooms || [];
+    showAIResults(parsed);
+  } catch(e) {
+    document.getElementById('aiModalBody').innerHTML += `
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;color:var(--red);font-size:0.82rem;margin-top:12px">
+        <strong>Error:</strong> ${esc(e.message)}
+      </div>`;
+    btn.innerHTML = '🤖 Analyze Drawing';
+    btn.disabled = false;
+  }
+}
+
+function showAIResults(parsed) {
+  const rooms = parsed.rooms || [];
+  let html = `<p style="font-size:0.82rem;color:var(--green);font-weight:600;margin-bottom:12px">✓ Found ${rooms.length} area${rooms.length!==1?'s':''}. Review quantities then apply.</p>`;
+
+  if (parsed.notes) {
+    html += `<div class="info-box" style="margin-bottom:12px">${esc(parsed.notes)}</div>`;
+  }
+
+  rooms.forEach((room, ri) => {
+    html += `<div class="ai-room">
+      <h4>${esc(room.name)}</h4>`;
+    if (room.doors?.length) {
+      room.doors.forEach((d, di) => {
+        html += `<div class="ai-item">
+          <span>${esc(d.type)} ${d.width_inches || '?'}"</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:0.72rem;margin:0">Qty:</label>
+            <input type="number" value="${d.qty || 1}" min="0"
+              onchange="UI.aiResults[${ri}].doors[${di}].qty=parseInt(this.value)||0" />
+          </div>
+        </div>`;
+      });
+    }
+    if (room.trim?.length) {
+      room.trim.forEach((t, ti) => {
+        html += `<div class="ai-item">
+          <span>${esc(t.type)}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <label style="font-size:0.72rem;margin:0">LF:</label>
+            <input type="number" value="${t.lf || 0}" min="0"
+              onchange="UI.aiResults[${ri}].trim[${ti}].lf=parseFloat(this.value)||0" />
+          </div>
+        </div>`;
+      });
+    }
+    html += `</div>`;
+  });
+
+  document.getElementById('aiModalBody').innerHTML = html;
+  document.getElementById('aiModalFoot').innerHTML = `
+    <button class="btn btn-outline" onclick="UI.aiImage=null;UI.aiResults=null;document.getElementById('aiModalBody').innerHTML=renderAIStep1();document.getElementById('aiModalFoot').innerHTML=''">← Re-upload</button>
+    <button class="btn btn-primary" onclick="applyAIResults()">✓ Apply to ${UI.aiTarget.type==='template'?'Template':'Common Areas'}</button>
+  `;
+}
+
+function applyAIResults() {
+  const { type, id } = UI.aiTarget;
+  const rooms = UI.aiResults;
+  if (!rooms) return;
+
+  const targetRooms = getRoomsArr(type, id);
+
+  rooms.forEach(aiRoom => {
+    // Find or create matching room
+    let room = targetRooms.find(r => r.name.toLowerCase() === aiRoom.name.toLowerCase());
+    if (!room) {
+      room = newRoom(aiRoom.name);
+      targetRooms.push(room);
+    }
+
+    // Apply doors (add or update drawing quantities)
+    (aiRoom.doors || []).forEach(aiDoor => {
+      const existing = room.doors.find(d => d.type === aiDoor.type && d.width === (aiDoor.width_inches || 32));
+      if (existing) {
+        existing.qty_dwg = aiDoor.qty || 0;
+      } else {
+        room.doors.push({ id: uid(), type: aiDoor.type || 'Interior Slab', width: aiDoor.width_inches || 32, qty_dwg: aiDoor.qty || 0, qty_field: null });
+      }
+    });
+
+    // Apply trim
+    (aiRoom.trim || []).forEach(aiTrim => {
+      const existing = room.trim.find(t => t.type === aiTrim.type);
+      if (existing) {
+        existing.lf_dwg = aiTrim.lf || 0;
+      } else {
+        room.trim.push({ id: uid(), type: aiTrim.type || 'Baseboard', lf_dwg: aiTrim.lf || 0, lf_field: null });
+      }
+    });
+  });
+
+  save();
+  closeModal('aiOverlay');
+  render();
+  toast(`Applied ${rooms.length} area${rooms.length!==1?'s':''} from drawing`);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════
+function openSettings() {
+  document.getElementById('apiKeyInput').value = getApiKey();
+  openModal('settingsOverlay');
+}
+
+function saveSettings() {
+  setApiKey(document.getElementById('apiKeyInput').value.trim());
+  closeModal('settingsOverlay');
+  toast('Settings saved');
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+loadState();
+render();
+</script>
+</body>
+</html>

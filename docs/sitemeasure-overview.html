@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SiteMeasure — Field Measurement Process Overview</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', Arial, sans-serif; font-size: 11pt; color: #1e293b; background: #fff; }
+    .page { max-width: 760px; margin: 0 auto; padding: 56px 60px; }
+
+    /* Header */
+    .doc-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 36px; padding-bottom: 24px; border-bottom: 2.5px solid #0f2744; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon { font-size: 28px; }
+    .brand-name { font-size: 22pt; font-weight: 700; color: #0f2744; letter-spacing: -.5px; }
+    .brand-tag { font-size: 8pt; font-weight: 600; background: #2563eb; color: #fff; padding: 3px 8px; border-radius: 4px; letter-spacing: .5px; text-transform: uppercase; margin-top: 4px; display: inline-block; }
+    .doc-meta { text-align: right; font-size: 8.5pt; color: #64748b; line-height: 1.7; }
+    .doc-meta strong { color: #1e293b; }
+
+    /* Title */
+    .doc-title-block { margin-bottom: 32px; }
+    .doc-title { font-size: 16pt; font-weight: 700; color: #0f2744; margin-bottom: 6px; }
+    .doc-subtitle { font-size: 10pt; color: #475569; line-height: 1.6; max-width: 580px; }
+
+    /* Sections */
+    .section { margin-bottom: 26px; }
+    .section-hdr { display: flex; align-items: center; gap: 10px; background: #0f2744; color: #fff; padding: 8px 14px; border-radius: 6px; margin-bottom: 12px; }
+    .section-num { background: #2563eb; color: #fff; font-size: 8pt; font-weight: 700; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .section-title { font-size: 10.5pt; font-weight: 600; letter-spacing: .2px; }
+
+    /* Bullets */
+    ul { padding-left: 0; list-style: none; }
+    ul li { padding: 5px 0 5px 20px; position: relative; font-size: 10pt; line-height: 1.55; color: #334155; border-bottom: 1px solid #f1f5f9; }
+    ul li:last-child { border-bottom: none; }
+    ul li::before { content: '›'; position: absolute; left: 4px; color: #2563eb; font-weight: 700; font-size: 12pt; line-height: 1.2; }
+    ul li strong { color: #0f2744; font-weight: 600; }
+    ul li .note { display: block; font-size: 8.5pt; color: #64748b; margin-top: 2px; }
+    ul.sub { margin-top: 4px; margin-left: 12px; }
+    ul.sub li { font-size: 9.5pt; color: #475569; border-bottom: none; padding: 2px 0 2px 16px; }
+    ul.sub li::before { content: '–'; color: #94a3b8; font-size: 10pt; }
+
+    /* Callout */
+    .callout { background: #eff6ff; border-left: 3px solid #2563eb; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 9.5pt; color: #1e40af; margin-top: 8px; line-height: 1.55; }
+    .callout strong { color: #1e3a8a; }
+    .callout-warn { background: #fffbeb; border-left: 3px solid #f59e0b; color: #92400e; }
+    .callout-warn strong { color: #78350f; }
+
+    /* Export table */
+    .export-table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 8px; }
+    .export-table th { background: #f1f5f9; text-align: left; padding: 7px 10px; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #475569; border-bottom: 2px solid #e2e8f0; }
+    .export-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: top; line-height: 1.45; }
+    .export-table td:first-child { font-weight: 600; color: #0f2744; white-space: nowrap; }
+    .export-table tr:last-child td { border-bottom: none; }
+    .tag { display: inline-block; font-size: 7.5pt; font-weight: 600; padding: 2px 7px; border-radius: 10px; }
+    .tag-now { background: #dcfce7; color: #166534; }
+    .tag-soon { background: #dbeafe; color: #1e40af; }
+    .tag-future { background: #f3f4f6; color: #6b7280; }
+
+    /* Two-col */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 26px; }
+    .col-card { border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; }
+    .col-card-title { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #0f2744; margin-bottom: 8px; }
+    .col-card ul li { font-size: 9.5pt; }
+
+    /* Footer */
+    .doc-footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 8pt; color: #94a3b8; }
+
+    /* Print */
+    @media print {
+      body { padding: 0; }
+      .page { padding: 36px 44px; max-width: 100%; }
+      .section { page-break-inside: avoid; }
+      .no-print { display: none; }
+    }
+    .print-btn { position: fixed; top: 20px; right: 20px; background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 10pt; cursor: pointer; font-weight: 600; }
+    .print-btn:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">🖨 Save as PDF</button>
+
+<div class="page">
+
+  <div class="doc-header">
+    <div>
+      <div class="brand"><span class="brand-icon">📐</span><span class="brand-name">SiteMeasure</span></div>
+      <span class="brand-tag">Enterprise</span>
+    </div>
+    <div class="doc-meta">
+      <strong>Field Measurement Process Overview</strong><br>
+      Version 2.0 &nbsp;·&nbsp; Harbor AI<br>
+      Live at <a href="https://measure.harborai.ca" style="color:#2563eb;text-decoration:none">measure.harborai.ca</a>
+    </div>
+  </div>
+
+  <div class="doc-title-block">
+    <div class="doc-title">How to Use SiteMeasure</div>
+    <div class="doc-subtitle">A step-by-step overview of the measurement workflow — from project setup through product catalog, field data capture, material specification, and export for supplier ordering.</div>
+  </div>
+
+  <!-- Step 1 -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">1</span><span class="section-title">⚙ Project Setup</span></div>
+    <ul>
+      <li><strong>Create a new project</strong> from the Projects dashboard — enter building name, site address, and waste factor
+        <span class="note">Waste factor defaults to 10% (1.10) and applies to all trim LF calculations in the summary</span>
+      </li>
+      <li><strong>One project per building</strong> — holds all floors, suite types, and common areas in one place</li>
+      <li><strong>Works for any building type</strong> — multi-family residential, commercial, or single-family homes</li>
+    </ul>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">2</span><span class="section-title">🗂 Product Catalog</span></div>
+    <ul>
+      <li><strong>Pre-seeded catalog</strong> includes genericized door and trim items organized by class → category → subcategory → item#</li>
+      <li><strong>Replace with your supplier's part numbers</strong> — edit item numbers, descriptions, and stock lengths to match your actual supplier</li>
+      <li><strong>CSV bulk import</strong> — download the template, fill in your supplier's product list, and import in one step
+        <span class="note">Required: class, category, subcategory, item_number, name. Optional: material, profile, stock_length_ft, unit, in_stock</span>
+      </li>
+      <li><strong>Stock lengths</strong> stored per item drive piece-count calculations in the takeoff (e.g. 16 ft baseboard, 7 ft door stop)</li>
+      <li><strong>Hierarchy:</strong> Doors → Interior / Exterior / Fire Rated → Slab / Prehung / Bifold etc. · Trim → Baseboard / Casing / Crown / Door Stop etc.</li>
+    </ul>
+    <div class="callout"><strong>Tip:</strong> The catalog does not need to be complete before measuring. Specs can be assigned after field data is collected — the summary flags any unassigned items.</div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">3</span><span class="section-title">📐 Suite Templates (Floor Plan Types)</span></div>
+    <ul>
+      <li><strong>Create one template per suite type</strong> — Studio, 1BR Standard, 2BR Corner, 2BR Premium, etc.
+        <span class="note">Templates are reusable — one template covers all identical units across all floors</span>
+      </li>
+      <li><strong>Set the default door height</strong> at the template level — all doors inherit this (typically 80"); individual doors can override</li>
+      <li><strong>Add rooms</strong> — Bedroom, Living, Kitchen, Bath, Closet, Hallway, etc.</li>
+      <li><strong>For each room add doors:</strong> type (Slab, Bifold, Prehung…), width, height, drawing qty, field qty</li>
+      <li><strong>For each room add trim:</strong> type (Baseboard, Casing, Crown…), drawing LF, field LF</li>
+      <li><strong>Summary logic:</strong> field quantity is used when entered; drawing quantity is the fallback — summary always reflects the most current data</li>
+    </ul>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">4</span><span class="section-title">🎨 Material Specifications</span></div>
+    <ul>
+      <li><strong>Assign a catalog item to each trim and door type</strong> per template — links measuring rows to real product numbers for ordering</li>
+      <li><strong>Each template has its own spec</strong> — premium suites can use hardwood trim while standard suites use finger joint pine</li>
+      <li><strong>Common area spec</strong> is set separately — hallways and amenity spaces often differ from suites</li>
+      <li><strong>Pickers filtered by category</strong> — Baseboard rows only show baseboard products, Interior Slab rows only show interior door products</li>
+      <li><strong>Item # and stock length</strong> appear live beside each picker as selections are made</li>
+    </ul>
+    <div class="callout callout-warn"><strong>Missing specs:</strong> Materials with quantities but no product assigned are flagged at the bottom of the Summary tab and marked in the CSV export — nothing is silently omitted.</div>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">5</span><span class="section-title">🏢 Floors & Units</span></div>
+    <ul>
+      <li><strong>Add a floor for each level</strong> — Floor 1, Floor 2, Parkade, Roof, etc.</li>
+      <li><strong>Add units to each floor</strong> and assign a suite template — e.g. Unit 101 → 1BR Standard, Unit 201 → 2BR Premium</li>
+      <li><strong>Duplicate floors</strong> to instantly replicate identical floor layouts — all units and common areas are copied</li>
+      <li><strong>Common areas per floor</strong> — hallways, stairwells, laundry, recreation rooms; each gets its own door and trim rows</li>
+      <li><strong>Default door height per floor</strong> for common area doors — overridable per door</li>
+    </ul>
+  </div>
+
+  <!-- Step 6 -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">6</span><span class="section-title">📏 Field Measurement (On Site)</span></div>
+    <ul>
+      <li><strong>Open the project on any device</strong> — browser-based at measure.harborai.ca, no app install required</li>
+      <li><strong>Navigate to the floor and room</strong> — drawing quantities are pre-populated from templates and AI takeoff</li>
+      <li><strong>Enter field quantities for doors</strong> — actual count per room; height can be overridden per door (shown with blue border)</li>
+      <li><strong>Enter field linear footage for trim</strong> — measure each run and record actual LF per trim type</li>
+      <li><strong>Save each floor</strong> before navigating away</li>
+      <li><strong>Drawing vs. field comparison</strong> available in the Summary tab — toggle to see both side by side</li>
+    </ul>
+  </div>
+
+  <!-- Step 7 -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">7</span><span class="section-title">🤖 AI Drawing Takeoff (Optional)</span></div>
+    <ul>
+      <li><strong>Upload a CAD export or high-resolution PDF screenshot</strong> of a suite floor plan or floor common area drawing</li>
+      <li><strong>Claude AI analyzes the drawing</strong> and pre-populates door counts and trim linear footage into the template</li>
+      <li><strong>Clean input only</strong> — CAD exports and professional PDF plans yield accurate results; handwritten or low-quality scans are not recommended</li>
+      <li><strong>Drawing quantities remain visible for comparison</strong> after field data is entered — useful for verifying as-built conditions match plans</li>
+    </ul>
+  </div>
+
+  <!-- Step 8 -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">8</span><span class="section-title">📋 Summary & Material Takeoff</span></div>
+    <ul>
+      <li><strong>Summary tab consolidates all data</strong> — broken down by suite type, common areas per floor, and grand total</li>
+      <li><strong>Each trim row shows:</strong> type, assigned item #, as-built LF, LF with waste, stock length, and <strong>pieces to order</strong></li>
+      <li><strong>Each door row shows:</strong> type, width, assigned item #, and total unit count</li>
+      <li><strong>Piece calculation:</strong> CEIL(LF with waste ÷ stock length) — e.g. 374 LF ÷ 16 ft = 24 pieces</li>
+      <li><strong>Missing spec warnings</strong> listed at the bottom for any material with quantities but no catalog item assigned</li>
+    </ul>
+  </div>
+
+  <!-- Step 9 — Export -->
+  <div class="section">
+    <div class="section-hdr"><span class="section-num">9</span><span class="section-title">⬇ Export & Ordering</span></div>
+    <ul>
+      <li><strong>The goal is to plug data directly into the supplier's ordering process</strong> — not transcribe from a printout</li>
+    </ul>
+
+    <table class="export-table" style="margin-top:10px">
+      <thead>
+        <tr><th>Format</th><th>What It Contains</th><th>Best For</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>CSV Export</td>
+          <td>Item #, description, as-built qty, LF with waste, stock length, pieces to order — sectioned by suite type and common areas, with a consolidated order summary at the bottom. Missing spec items are flagged inline.</td>
+          <td>Import into any supplier ordering system, Excel, or ERP. Universal format — works everywhere.</td>
+          <td><span class="tag tag-now">Available Now</span></td>
+        </tr>
+        <tr>
+          <td>Print / PDF</td>
+          <td>Formatted material takeoff with all item numbers, quantities, and piece counts. Clean multi-page layout suitable for emailing to a supplier.</td>
+          <td>Suppliers who accept purchase orders by email or fax.</td>
+          <td><span class="tag tag-now">Available Now</span></td>
+        </tr>
+        <tr>
+          <td>Excel (.xlsx)</td>
+          <td>Formatted purchase order with multiple worksheets — detail by section + consolidated order sheet with formulas.</td>
+          <td>Suppliers and contractors who work primarily in Excel. More presentable than CSV for external use.</td>
+          <td><span class="tag tag-soon">Coming Soon</span></td>
+        </tr>
+        <tr>
+          <td>Email PO</td>
+          <td>Send the formatted takeoff directly from SiteMeasure to the supplier's purchasing email with CSV attached.</td>
+          <td>Eliminating the download / attach step entirely.</td>
+          <td><span class="tag tag-soon">Coming Soon</span></td>
+        </tr>
+        <tr>
+          <td>QuickBooks PO</td>
+          <td>Purchase order in QuickBooks-compatible format — imports directly as a PO in QB without re-entry.</td>
+          <td>Contractors and suppliers already using QuickBooks as their primary accounting system.</td>
+          <td><span class="tag tag-soon">Coming Soon</span></td>
+        </tr>
+        <tr>
+          <td>Supplier API / EDI</td>
+          <td>Direct order submission to the supplier's purchasing system via API or EDI feed — zero transcription, order confirmed in real time.</td>
+          <td>High-volume suppliers with a purchasing portal or EDI capability (per-supplier integration).</td>
+          <td><span class="tag tag-future">Roadmap</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="margin-top:10px">
+      <strong>CSV Column Reference:</strong> Type · Item # · Description · As-Built Qty · Unit (EA/LF) · +Waste LF · Stock Length (ft) · Pieces to Order · Notes (flags missing specs with ⚠)
+    </div>
+  </div>
+
+  <!-- Quick Reference -->
+  <div style="margin-bottom:26px">
+    <div style="font-size:9pt;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#0f2744;margin-bottom:12px">Quick Reference — Project Tab Overview</div>
+    <div class="two-col">
+      <div class="col-card">
+        <div class="col-card-title">Project Tabs</div>
+        <ul>
+          <li><strong>⚙ Setup</strong> — name, address, waste factor</li>
+          <li><strong>📐 Suite Templates</strong> — floor plans with rooms, doors, trim</li>
+          <li><strong>🏢 Floors & Units</strong> — building layout, unit assignments, common areas</li>
+          <li><strong>🎨 Material Specs</strong> — catalog items per trim/door type, per template</li>
+          <li><strong>📋 Summary</strong> — full takeoff, piece counts, CSV export, print</li>
+        </ul>
+      </div>
+      <div class="col-card">
+        <div class="col-card-title">Key Concepts</div>
+        <ul>
+          <li><strong>Drawing qty</strong> — from plans or AI takeoff</li>
+          <li><strong>Field qty</strong> — measured on site (overrides drawing)</li>
+          <li><strong>Waste factor</strong> — applied to all trim LF at summary</li>
+          <li><strong>Stock length</strong> — per catalog item, drives piece count</li>
+          <li><strong>Spec</strong> — links a trim/door type to a catalog item #</li>
+          <li><strong>Template</strong> — reusable suite floor plan assigned to units</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-footer">
+    <span>SiteMeasure Enterprise v2.0 — Harbor AI &nbsp;·&nbsp; measure.harborai.ca</span>
+    <span>keith@harborai.ca</span>
+  </div>
+
+</div>
+</body>
+</html>
