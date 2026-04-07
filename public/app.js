@@ -81,6 +81,7 @@ let _activeSpecTplId = null;
 let _specContext = 'tpl'; // 'tpl' | 'common'
 
 const DOOR_TYPES = ['Interior Slab','Interior Prehung','Barn Door','French Door','Bifold','Bypass','Fire Rated','Exterior'];
+const DOOR_WIDTHS = [12,14,16,18,20,22,24,26,28,30,32,34,36,38,42,48];
 const TRIM_TYPES = ['Baseboard','Casing','Crown Moulding','Door Stop','Backband','Architrave','Handrail'];
 const STOCK_LENGTHS = { 'Baseboard': 16, 'Casing': 16, 'Crown Moulding': 16, 'Door Stop': 7, 'Backband': 16, 'Architrave': 16, 'Handrail': 12 };
 const TRIM_CAT_MAP  = { 'Baseboard': 'Baseboard', 'Casing': 'Door Casing', 'Crown Moulding': 'Crown Moulding', 'Door Stop': 'Door Stop', 'Backband': 'Backband', 'Architrave': 'Backband', 'Handrail': 'Handrail' };
@@ -739,9 +740,9 @@ function renderSetupTab() {
       <div class="form-card">
         <div class="form-card-title">Project Overview</div>
         <div class="stat-grid">
-          ${statChip('📐', STATE.project.templates.length, 'Suite Templates')}
-          ${statChip('🏢', STATE.project.floors.length, 'Floors')}
-          ${statChip('🚪', STATE.project.floors.reduce((a,f)=>a+f.units.length,0), 'Total Units')}
+          <div onclick="switchProjectTab('templates')" style="cursor:pointer">${statChip('📐', STATE.project.templates.length, 'Suite Templates')}</div>
+          <div onclick="switchProjectTab('floors')" style="cursor:pointer">${statChip('🏢', STATE.project.floors.length, 'Floors')}</div>
+          <div>${statChip('🚪', STATE.project.floors.reduce((a,f)=>a+f.units.length,0), 'Total Units')}</div>
         </div>
       </div>
     </div>
@@ -824,6 +825,7 @@ function renderTemplateEditor(tpl) {
         </div>
         <div style="margin-top:18px;display:flex;gap:8px">
           <button class="btn btn-primary" onclick="saveTemplate(${tpl.id})">Save Template</button>
+          <button class="btn btn-outline" onclick="addRoomToTemplate(${tpl.id})">+ Add Room</button>
         </div>
       </div>
       <div class="callout">Drawing quantities from AI or manual entry. Field quantities captured on site. Summary uses field if set, otherwise drawing.</div>
@@ -859,11 +861,26 @@ async function deleteTemplate(id) {
   renderProjectTab();
 }
 
+function getRequiredBedrooms(name) {
+  const m = name.match(/(\d+)BR/i);
+  return m ? parseInt(m[1]) : 0;
+}
+
 async function saveTemplate(tplId) {
   const tpl = STATE.project.templates.find(t => t.id === tplId);
   const name = document.getElementById(`tplName_${tplId}`)?.value || tpl.name;
   const defH = parseInt(document.getElementById(`defH_tpl_${tplId}`)?.value) || tpl.default_door_height || 80;
   tpl.default_door_height = defH;
+
+  const required = getRequiredBedrooms(name);
+  if (required > 0) {
+    const bedroomRooms = tpl.rooms.filter(r => /bedroom/i.test(r.name));
+    if (bedroomRooms.length < required) {
+      UI.toast(`⚠ A ${required}BR template needs ${required} bedroom${required>1?'s':''} — found ${bedroomRooms.length}. Add the missing bedroom room(s) before saving.`);
+      return;
+    }
+  }
+
   try {
     await api.put(`/templates/${tplId}`, { name, default_door_height: defH, rooms: tpl.rooms });
     tpl.name = name;
@@ -913,10 +930,26 @@ function renderFloorEditor(floor, idx) {
       </div>
 
       <div class="form-card-title" style="margin-top:4px">Suite Units</div>
+
+      <div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:14px;padding:10px 12px;background:var(--bg-subtle, #f5f5f5);border-radius:8px;flex-wrap:wrap;border:1px solid var(--border)">
+        <div class="field" style="flex:1;min-width:160px;margin:0">
+          <label>Template</label>
+          <select id="bulkTpl_${floor.id}">
+            <option value="">— Select template —</option>
+            ${templates.map(t=>`<option value="${t.id}">${UI.esc(t.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field" style="width:70px;margin:0">
+          <label>Qty</label>
+          <input type="number" id="bulkQty_${floor.id}" value="1" min="1" max="99" />
+        </div>
+        <button class="btn btn-primary" style="margin-bottom:1px" onclick="addUnitsByTemplate(${floor.id})">+ Add Units</button>
+      </div>
+
       <div class="units-grid">
         ${floor.units.map(u => {
           const tpl = templates.find(t => t.id === u.template_id);
-          return `<div class="unit-chip ${tpl?'has-tpl':''}" onclick="editUnitModal(${floor.id},'${u._localId||u.id}',${JSON.stringify(u.name)},${u.template_id||'null'})">
+          return `<div class="unit-chip ${tpl?'has-tpl':''}" onclick="editUnitModal(${floor.id},'${u._localId||u.id}','${UI.esc(u.name)}',${u.template_id||'null'})">
             <button class="ud" onclick="event.stopPropagation();removeUnit(${floor.id},'${u._localId||u.id}')">×</button>
             <div class="un">${UI.esc(u.name)}</div>
             <div class="ut">${tpl ? UI.esc(tpl.name) : 'No template'}</div>
@@ -1006,6 +1039,25 @@ function addUnit(floorId) {
   renderProjectTab();
 }
 
+function addUnitsByTemplate(floorId) {
+  const floor = STATE.project.floors.find(f => f.id === floorId);
+  const tplId = parseInt(document.getElementById(`bulkTpl_${floorId}`)?.value) || null;
+  const qty   = Math.max(1, parseInt(document.getElementById(`bulkQty_${floorId}`)?.value) || 1);
+  if (!tplId) { UI.toast('Select a template first'); return; }
+
+  // Extract leading floor number for unit naming (e.g. "Floor 2" → "2", "Level 12" → "12")
+  const floorNum = floor.name.match(/\d+/)?.[0] || '';
+
+  for (let i = 0; i < qty; i++) {
+    const seq = floor.units.length + 1;
+    const unitName = floorNum
+      ? `${floorNum}${String(seq).padStart(2, '0')}`
+      : String(seq).padStart(2, '0');
+    floor.units.push({ id: null, _localId: '_' + Math.random().toString(36).slice(2), name: unitName, template_id: tplId });
+  }
+  renderProjectTab();
+}
+
 function removeUnit(floorId, unitLocalId) {
   const floor = STATE.project.floors.find(f => f.id === floorId);
   floor.units = floor.units.filter(u => (u._localId || u.id) != unitLocalId);
@@ -1070,12 +1122,24 @@ function renderRoomBlock(type, parentId, room, ri, defaultHeight = 80) {
         ${room.doors.map((d, di) => {
           const h = d.height_in ?? defaultHeight;
           const isOverride = d.height_in != null && d.height_in !== defaultHeight;
+          const isCustomW = !DOOR_WIDTHS.includes(Number(d.width_in));
           return `
           <div class="door-row">
             <select class="row-input row-select" onchange="updateDoor('${type}',${parentId},${ri},${di},'type',this.value)">
               ${DOOR_TYPES.map(t=>`<option ${t===d.type?'selected':''}>${t}</option>`).join('')}
             </select>
-            <input class="row-input" type="number" value="${d.width_in||''}" placeholder="32" onchange="updateDoor('${type}',${parentId},${ri},${di},'width_in',this.value)" />
+            <div>
+              ${isCustomW
+                ? `<input class="row-input" type="number" value="${d.width_in||''}" placeholder="in" onchange="updateDoor('${type}',${parentId},${ri},${di},'width_in',this.value)" />`
+                : `<select class="row-input row-select" onchange="updateDoor('${type}',${parentId},${ri},${di},'width_in',this.value)">
+                    ${DOOR_WIDTHS.filter(w=>d.type==='Bifold'?w>=24:true).map(w=>`<option value="${w}" ${d.width_in==w?'selected':''}>${w}"</option>`).join('')}
+                  </select>`
+              }
+              <label style="font-size:.68rem;display:flex;align-items:center;gap:3px;margin-top:2px;cursor:pointer;color:var(--text-muted)">
+                <input type="checkbox" ${isCustomW?'checked':''} onchange="toggleCustomWidth('${type}',${parentId},${ri},${di},this.checked)" style="width:auto;margin:0" />
+                Custom
+              </label>
+            </div>
             <input class="row-input" type="number" value="${h}" placeholder="${defaultHeight}" title="${isOverride?'Height overridden':'Inherits default height'}" style="${isOverride?'border-color:var(--brand);':'opacity:.7;'}" onchange="updateDoor('${type}',${parentId},${ri},${di},'height_in',this.value)" />
             <input class="row-input" type="number" value="${d.qty_drawing??''}" placeholder="—" onchange="updateDoor('${type}',${parentId},${ri},${di},'qty_drawing',this.value)" />
             <input class="row-input" type="number" value="${d.qty_field??''}" placeholder="—" onchange="updateDoor('${type}',${parentId},${ri},${di},'qty_field',this.value)" />
@@ -1103,6 +1167,10 @@ function renderRoomBlock(type, parentId, room, ri, defaultHeight = 80) {
           <textarea class="row-input" rows="2" style="resize:vertical;margin-top:4px" placeholder="Site conditions, special requirements…"
             onchange="updateRoomNotes('${type}',${parentId},${ri},this.value)">${UI.esc(room.notes||'')}</textarea>
         </div>
+        ${type === 'tpl' ? `
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+          <button class="btn btn-primary" style="width:100%" onclick="saveTemplate(${parentId})">💾 Save Template</button>
+        </div>` : ''}
       </div>
     </div>
   `;
@@ -1132,7 +1200,17 @@ function updateDoor(type, parentId, ri, di, field, val) {
   if (field === 'type') d.type = val;
   else d[field] = val === '' ? null : parseInt(val);
 }
-function addTrim(type, parentId, ri) { getRooms(type, parentId)[ri].trim.push({ id: null, type: 'Baseboard', lf_drawing: null, lf_field: null }); renderProjectTab(); }
+function toggleCustomWidth(type, parentId, ri, di, checked) {
+  const d = getRooms(type, parentId)[ri].doors[di];
+  d.width_in = checked ? null : 32;
+  renderProjectTab();
+}
+function addTrim(type, parentId, ri) {
+  const trim = getRooms(type, parentId)[ri].trim;
+  const hasBaseboard = trim.some(t => t.type === 'Baseboard');
+  trim.push({ id: null, type: hasBaseboard ? 'Casing' : 'Baseboard', lf_drawing: null, lf_field: null });
+  renderProjectTab();
+}
 function removeTrim(type, parentId, ri, ti) { getRooms(type, parentId)[ri].trim.splice(ti, 1); renderProjectTab(); }
 function updateTrim(type, parentId, ri, ti, field, val) {
   const t = getRooms(type, parentId)[ri].trim[ti];
