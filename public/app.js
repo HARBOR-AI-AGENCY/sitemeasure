@@ -676,6 +676,10 @@ function renderProjectEditor() {
 }
 
 function switchProjectTab(tab) {
+  if (STATE.projectTab === 'templates' && tab !== 'templates') {
+    const hasUnsaved = STATE.project?.templates?.some(t => t.rooms?.some(r => !r.id));
+    if (hasUnsaved && !UI.confirm('You have unsaved rooms. Leave without saving?')) return;
+  }
   STATE.projectTab = tab;
   document.querySelectorAll('.etab').forEach(b => b.classList.toggle('active', b.textContent.toLowerCase().includes(tab)));
   renderProjectTab();
@@ -824,7 +828,10 @@ function renderTemplateEditor(tpl) {
           <input type="number" id="defH_tpl_${tpl.id}" value="${tpl.default_door_height || 80}" min="60" max="120" />
         </div>
         <div style="margin-top:18px;display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="saveTemplate(${tpl.id})">Save Template</button>
+          ${_tplDirty.has(tpl.id)
+            ? `<button class="btn btn-primary" onclick="saveTemplate(${tpl.id})">Save Template</button>`
+            : `<button class="btn btn-primary" style="background:#16a34a;border-color:#16a34a" onclick="saveTemplate(${tpl.id})">✓ Template Saved</button>`
+          }
           <button class="btn btn-outline" onclick="addRoomToTemplate(${tpl.id})">+ Add Room</button>
         </div>
       </div>
@@ -838,6 +845,7 @@ function renderTemplateEditor(tpl) {
 function addRoomToTemplate(tplId) {
   const tpl = STATE.project.templates.find(t => t.id === tplId);
   tpl.rooms.push({ id: null, name: 'New Room', notes: '', doors: [], trim: [] });
+  _tplDirty.add(tplId);
   renderProjectTab();
 }
 
@@ -866,6 +874,11 @@ function getRequiredBedrooms(name) {
   return m ? parseInt(m[1]) : 0;
 }
 
+function isBedroomRoom(name) {
+  // matches "Bedroom 1", "BR1", "BR 2", "Master Bedroom", etc.
+  return /(bedroom|\bbr\s*\d)/i.test(name);
+}
+
 async function saveTemplate(tplId) {
   const tpl = STATE.project.templates.find(t => t.id === tplId);
   const name = document.getElementById(`tplName_${tplId}`)?.value || tpl.name;
@@ -874,7 +887,7 @@ async function saveTemplate(tplId) {
 
   const required = getRequiredBedrooms(name);
   if (required > 0) {
-    const bedroomRooms = tpl.rooms.filter(r => /bedroom/i.test(r.name));
+    const bedroomRooms = tpl.rooms.filter(r => isBedroomRoom(r.name));
     if (bedroomRooms.length < required) {
       UI.toast(`⚠ A ${required}BR template needs ${required} bedroom${required>1?'s':''} — found ${bedroomRooms.length}. Add the missing bedroom room(s) before saving.`);
       return;
@@ -884,6 +897,7 @@ async function saveTemplate(tplId) {
   try {
     await api.put(`/templates/${tplId}`, { name, default_door_height: defH, rooms: tpl.rooms });
     tpl.name = name;
+    _tplDirty.delete(tplId);
     UI.toast('Template saved');
     // refresh from server to get proper IDs
     const refreshed = await api.get(`/projects/${STATE.project.project.id}`);
@@ -892,8 +906,35 @@ async function saveTemplate(tplId) {
   } catch(e) { UI.toast('Error: ' + e.message); }
 }
 
+async function saveRoom(tplId, ri) {
+  const tpl = STATE.project.templates.find(t => t.id === tplId);
+  const name = document.getElementById(`tplName_${tplId}`)?.value || tpl.name;
+  const defH = parseInt(document.getElementById(`defH_tpl_${tplId}`)?.value) || tpl.default_door_height || 80;
+  tpl.default_door_height = defH;
+  try {
+    await api.put(`/templates/${tplId}`, { name, default_door_height: defH, rooms: tpl.rooms });
+    tpl.name = name;
+    _tplDirty.delete(tplId);
+    const required = getRequiredBedrooms(name);
+    const savedRoomIsBedrm = isBedroomRoom(tpl.rooms[ri]?.name || '');
+    if (required > 0 && savedRoomIsBedrm) {
+      const bedroomCount = tpl.rooms.filter(r => isBedroomRoom(r.name)).length;
+      UI.toast(bedroomCount >= required
+        ? `✓ All bedrooms saved — use Save Template to finalize`
+        : `Room saved (${bedroomCount}/${required} bedrooms)`);
+    } else {
+      UI.toast('Room saved');
+    }
+    const refreshed = await api.get(`/projects/${STATE.project.project.id}`);
+    STATE.project = refreshed;
+    renderProjectTab();
+  } catch(e) { UI.toast('Error: ' + e.message); }
+}
+
 // ── Floors Tab ────────────────────────────────────────────
 let _activeFloorIdx = 0;
+const _floorDirty = new Set(); // floor IDs with unsaved changes
+const _tplDirty = new Set();   // template IDs with unsaved changes
 
 function renderFloorsTab() {
   const { floors } = STATE.project;
@@ -923,7 +964,10 @@ function renderFloorEditor(floor, idx) {
           <input type="text" id="flName_${floor.id}" value="${UI.esc(floor.name)}" />
         </div>
         <div style="margin-top:18px;display:flex;gap:8px">
-          <button class="btn btn-primary" onclick="saveFloor(${floor.id})">Save Floor</button>
+          ${_floorDirty.has(floor.id)
+            ? `<button class="btn btn-primary" onclick="saveFloor(${floor.id})">Save Floor</button>`
+            : `<button class="btn btn-primary" style="background:#16a34a;border-color:#16a34a" onclick="saveFloor(${floor.id})">✓ Floor Saved</button>`
+          }
           <button class="btn btn-secondary" onclick="duplicateFloor(${idx})">📋 Duplicate</button>
           <button class="btn btn-danger" onclick="deleteFloor(${floor.id})">Delete</button>
         </div>
@@ -1025,7 +1069,24 @@ async function saveFloor(floorId) {
   try {
     await api.put(`/floors/${floorId}`, { name, default_door_height: defH, units: floor.units, commonRooms: floor.commonRooms });
     floor.name = name;
+    _floorDirty.delete(floorId);
     UI.toast('Floor saved');
+    const refreshed = await api.get(`/projects/${STATE.project.project.id}`);
+    STATE.project = refreshed;
+    renderProjectTab();
+  } catch(e) { UI.toast('Error: ' + e.message); }
+}
+
+async function saveCommonRoom(floorId) {
+  const floor = STATE.project.floors.find(f => f.id === floorId);
+  const name = document.getElementById(`flName_${floorId}`)?.value || floor.name;
+  const defH = parseInt(document.getElementById(`defH_floor_${floorId}`)?.value) || floor.default_door_height || 80;
+  floor.default_door_height = defH;
+  try {
+    await api.put(`/floors/${floorId}`, { name, default_door_height: defH, units: floor.units, commonRooms: floor.commonRooms });
+    floor.name = name;
+    _floorDirty.delete(floorId);
+    UI.toast('Common area saved');
     const refreshed = await api.get(`/projects/${STATE.project.project.id}`);
     STATE.project = refreshed;
     renderProjectTab();
@@ -1036,6 +1097,7 @@ function addUnit(floorId) {
   const floor = STATE.project.floors.find(f => f.id === floorId);
   const n = floor.units.length + 1;
   floor.units.push({ id: null, _localId: '_' + Math.random().toString(36).slice(2), name: String(n).padStart(2,'0'), template_id: null });
+  _floorDirty.add(floorId);
   renderProjectTab();
 }
 
@@ -1055,12 +1117,14 @@ function addUnitsByTemplate(floorId) {
       : String(seq).padStart(2, '0');
     floor.units.push({ id: null, _localId: '_' + Math.random().toString(36).slice(2), name: unitName, template_id: tplId });
   }
+  _floorDirty.add(floorId);
   renderProjectTab();
 }
 
 function removeUnit(floorId, unitLocalId) {
   const floor = STATE.project.floors.find(f => f.id === floorId);
   floor.units = floor.units.filter(u => (u._localId || u.id) != unitLocalId);
+  _floorDirty.add(floorId);
   renderProjectTab();
 }
 
@@ -1097,12 +1161,14 @@ function saveUnitEdit(floorId, unitLocalId) {
   unit.name = document.getElementById('uName').value || unit.name;
   unit.template_id = parseInt(document.getElementById('uTpl').value) || null;
   UI.closeModal();
+  _floorDirty.add(floorId);
   renderProjectTab();
 }
 
 function addCommonRoom(floorId) {
   const floor = STATE.project.floors.find(f => f.id === floorId);
   floor.commonRooms.push({ id: null, name: 'Common Area', notes: '', doors: [], trim: [] });
+  _floorDirty.add(floorId);
   renderProjectTab();
 }
 
@@ -1114,6 +1180,10 @@ function renderRoomBlock(type, parentId, room, ri, defaultHeight = 80) {
       <div class="room-block-hdr">
         <input class="room-name-inp" type="text" value="${UI.esc(room.name)}"
           onchange="updateRoomName('${type}',${parentId},${ri},this.value)" />
+        ${type === 'floor' ? `
+          ${!room.id ? '<span style="font-size:.7rem;color:#f59e0b;font-weight:600;white-space:nowrap">● Unsaved</span>' : ''}
+          <button class="btn btn-primary btn-xs" onclick="saveCommonRoom(${parentId})">Save</button>
+        ` : ''}
         <button class="btn btn-danger btn-xs" onclick="removeRoom('${type}',${parentId},${ri})">Remove</button>
       </div>
       <div class="room-block-body">
@@ -1169,7 +1239,7 @@ function renderRoomBlock(type, parentId, room, ri, defaultHeight = 80) {
         </div>
         ${type === 'tpl' ? `
         <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
-          <button class="btn btn-primary" style="width:100%" onclick="saveTemplate(${parentId})">💾 Save Template</button>
+          <button class="btn btn-primary" style="width:100%" onclick="saveRoom(${parentId},${ri})">Save Room</button>
         </div>` : ''}
       </div>
     </div>
@@ -1183,7 +1253,12 @@ function getRooms(type, parentId) {
 }
 function updateRoomName(type, parentId, ri, val) { getRooms(type, parentId)[ri].name = val; }
 function updateRoomNotes(type, parentId, ri, val) { getRooms(type, parentId)[ri].notes = val; }
-function removeRoom(type, parentId, ri) { getRooms(type, parentId).splice(ri, 1); renderProjectTab(); }
+function removeRoom(type, parentId, ri) {
+  getRooms(type, parentId).splice(ri, 1);
+  if (type === 'floor') _floorDirty.add(parentId);
+  else _tplDirty.add(parentId);
+  renderProjectTab();
+}
 function addDoor(type, parentId, ri) {
   const defHEl = document.getElementById(`defH_${type}_${parentId}`);
   const h = defHEl ? (parseInt(defHEl.value) || 80) : (
@@ -1192,9 +1267,14 @@ function addDoor(type, parentId, ri) {
       : STATE.project.floors.find(f => f.id === parentId)?.default_door_height || 80
   );
   getRooms(type, parentId)[ri].doors.push({ id: null, type: 'Interior Slab', width_in: 32, height_in: h, qty_drawing: null, qty_field: null });
+  if (type === 'floor') _floorDirty.add(parentId); else _tplDirty.add(parentId);
   renderProjectTab();
 }
-function removeDoor(type, parentId, ri, di) { getRooms(type, parentId)[ri].doors.splice(di, 1); renderProjectTab(); }
+function removeDoor(type, parentId, ri, di) {
+  getRooms(type, parentId)[ri].doors.splice(di, 1);
+  if (type === 'floor') _floorDirty.add(parentId); else _tplDirty.add(parentId);
+  renderProjectTab();
+}
 function updateDoor(type, parentId, ri, di, field, val) {
   const d = getRooms(type, parentId)[ri].doors[di];
   if (field === 'type') d.type = val;
@@ -1203,15 +1283,21 @@ function updateDoor(type, parentId, ri, di, field, val) {
 function toggleCustomWidth(type, parentId, ri, di, checked) {
   const d = getRooms(type, parentId)[ri].doors[di];
   d.width_in = checked ? null : 32;
+  if (type === 'floor') _floorDirty.add(parentId); else _tplDirty.add(parentId);
   renderProjectTab();
 }
 function addTrim(type, parentId, ri) {
   const trim = getRooms(type, parentId)[ri].trim;
   const hasBaseboard = trim.some(t => t.type === 'Baseboard');
   trim.push({ id: null, type: hasBaseboard ? 'Casing' : 'Baseboard', lf_drawing: null, lf_field: null });
+  if (type === 'floor') _floorDirty.add(parentId); else _tplDirty.add(parentId);
   renderProjectTab();
 }
-function removeTrim(type, parentId, ri, ti) { getRooms(type, parentId)[ri].trim.splice(ti, 1); renderProjectTab(); }
+function removeTrim(type, parentId, ri, ti) {
+  getRooms(type, parentId)[ri].trim.splice(ti, 1);
+  if (type === 'floor') _floorDirty.add(parentId); else _tplDirty.add(parentId);
+  renderProjectTab();
+}
 function updateTrim(type, parentId, ri, ti, field, val) {
   const t = getRooms(type, parentId)[ri].trim[ti];
   if (field === 'type') t.type = val;
@@ -1220,39 +1306,8 @@ function updateTrim(type, parentId, ri, ti, field, val) {
 
 // ── Specs Tab ─────────────────────────────────────────────
 function renderSpecsTab() {
-  const { templates, project, commonSpecs } = STATE.project;
-  if (!_activeSpecTplId && templates.length) _activeSpecTplId = templates[0].id;
-  const activeTpl = templates.find(t => t.id === _activeSpecTplId);
-
-  return `
-    <div class="editor-layout">
-      <div>
-        <div class="form-card" style="padding:12px">
-          <div class="form-card-title">Suite Templates</div>
-          ${templates.map(t => `
-            <div class="list-row ${t.id===_activeSpecTplId && _specContext==='tpl'?'list-row-active':''}"
-              onclick="_activeSpecTplId=${t.id};_specContext='tpl';renderProjectTab()" style="padding:10px 12px;border-radius:8px;cursor:pointer;transition:background .1s;margin-bottom:4px">
-              <div style="font-weight:600;font-size:.88rem">${UI.esc(t.name)}</div>
-              <div style="font-size:.72rem;color:var(--text-muted)">${(t.specs||[]).filter(s=>s.catalog_item_id).length} item${(t.specs||[]).filter(s=>s.catalog_item_id).length!==1?'s':''} specified</div>
-            </div>
-          `).join('')}
-          <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
-            <div class="list-row ${_specContext==='common'?'list-row-active':''}"
-              onclick="_specContext='common';renderProjectTab()" style="padding:10px 12px;border-radius:8px;cursor:pointer;transition:background .1s">
-              <div style="font-weight:600;font-size:.88rem">🏢 Common Areas</div>
-              <div style="font-size:.72rem;color:var(--text-muted)">${(commonSpecs||[]).filter(s=>s.catalog_item_id).length} item${(commonSpecs||[]).filter(s=>s.catalog_item_id).length!==1?'s':''} specified</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div id="specEditorPane">
-        ${_specContext === 'common'
-          ? renderSpecEditor('common', project.id, commonSpecs || [])
-          : (activeTpl ? renderSpecEditor('tpl', activeTpl.id, activeTpl.specs || []) : '<div class="form-card"><p style="color:var(--text-muted);font-size:.85rem">No suite templates yet. Create a template first.</p></div>')
-        }
-      </div>
-    </div>
-  `;
+  const { project, commonSpecs } = STATE.project;
+  return renderSpecEditor('common', project.id, commonSpecs || []);
 }
 
 function specsToMap(specs) {
@@ -1275,7 +1330,7 @@ function buildItemPicker(specType, typeLabel, currentItemId) {
 function renderSpecEditor(context, contextId, specs) {
   const map = specsToMap(specs);
   const saveCall = context === 'tpl' ? `saveTemplateSpecs(${contextId})` : `saveCommonSpecs(${contextId})`;
-  const title = context === 'common' ? '🏢 Common Area Material Spec' : '🎨 Suite Material Spec';
+  const title = '🎨 Building Material Specs';
 
   function trimRows() {
     return TRIM_TYPES.map(type => {
@@ -1385,27 +1440,26 @@ function renderSummaryTab() {
 
   const suiteSections = templates.filter(t => tplCounts[t.id] > 0).map(t => {
     const count = tplCounts[t.id];
-    const specMap = specsToMap(t.specs || []);
     const doors = {}, trim = {};
     t.rooms.forEach(r => {
       r.doors.forEach(d => {
         const k = `${d.type} ${d.width_in || '?'}"`;
-        const spec = specMap.door[d.type];
+        const spec = commonSpecMap.door[d.type];
         if (!doors[k]) doors[k] = { eff: 0, dwg: 0, itemNum: spec?.item_number || null };
         doors[k].eff += eff(d.qty_field, d.qty_drawing) * count;
         doors[k].dwg += (d.qty_drawing||0) * count;
         if (!grandDoors[k]) grandDoors[k] = { qty: 0, itemNum: spec?.item_number || null };
         grandDoors[k].qty += eff(d.qty_field, d.qty_drawing) * count;
-        if (!spec && eff(d.qty_field, d.qty_drawing) > 0) { const m = `${t.name}: ${d.type}`; if (!missingSpecs.includes(m)) missingSpecs.push(m); }
+        if (!spec && eff(d.qty_field, d.qty_drawing) > 0) { const m = `${d.type}`; if (!missingSpecs.includes(m)) missingSpecs.push(m); }
       });
       r.trim.forEach(tr => {
-        const spec = specMap.trim[tr.type];
+        const spec = commonSpecMap.trim[tr.type];
         if (!trim[tr.type]) trim[tr.type] = { eff: 0, dwg: 0, itemNum: spec?.item_number || null, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
         trim[tr.type].eff += eff(tr.lf_field, tr.lf_drawing) * count;
         trim[tr.type].dwg += (tr.lf_drawing||0) * count;
         if (!grandTrim[tr.type]) grandTrim[tr.type] = { lf: 0, itemNum: spec?.item_number || null, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
         grandTrim[tr.type].lf += eff(tr.lf_field, tr.lf_drawing) * count;
-        if (!spec && eff(tr.lf_field, tr.lf_drawing) > 0) { const m = `${t.name}: ${tr.type}`; if (!missingSpecs.includes(m)) missingSpecs.push(m); }
+        if (!spec && eff(tr.lf_field, tr.lf_drawing) > 0) { const m = `${tr.type}`; if (!missingSpecs.includes(m)) missingSpecs.push(m); }
       });
     });
     return { name: t.name, count, doors, trim };
@@ -1422,7 +1476,7 @@ function renderSummaryTab() {
         doors[k].dwg += d.qty_drawing||0;
         if (!grandDoors[k]) grandDoors[k] = { qty: 0, itemNum: spec?.item_number || null };
         grandDoors[k].qty += eff(d.qty_field, d.qty_drawing);
-        if (!spec && eff(d.qty_field, d.qty_drawing) > 0) { const m = `${f.name} Common: ${d.type}`; if (!missingSpecs.includes(m)) missingSpecs.push(m); }
+        if (!spec && eff(d.qty_field, d.qty_drawing) > 0) { const m = `${d.type}`; if (!missingSpecs.includes(m)) missingSpecs.push(m); }
       });
       r.trim.forEach(tr => {
         const spec = commonSpecMap.trim[tr.type];
@@ -1431,7 +1485,7 @@ function renderSummaryTab() {
         trim[tr.type].dwg += tr.lf_drawing||0;
         if (!grandTrim[tr.type]) grandTrim[tr.type] = { lf: 0, itemNum: spec?.item_number || null, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
         grandTrim[tr.type].lf += eff(tr.lf_field, tr.lf_drawing);
-        if (!spec && eff(tr.lf_field, tr.lf_drawing) > 0) { const m = `${f.name} Common: ${tr.type}`; if (!missingSpecs.includes(m)) missingSpecs.push(m); }
+        if (!spec && eff(tr.lf_field, tr.lf_drawing) > 0) { const m = `${tr.type}`; if (!missingSpecs.includes(m)) missingSpecs.push(m); }
       });
     });
     return { name: f.name, doors, trim };
@@ -1555,7 +1609,7 @@ function renderSummaryTab() {
       ${missingSpecs.length ? `
         <div class="form-card" style="border:1.5px solid var(--warning,#f59e0b);background:var(--warning-bg,#fffbeb)">
           <div class="form-card-title" style="color:var(--warning-text,#92400e)">⚠ Missing Material Specs</div>
-          <p style="font-size:.82rem;color:var(--warning-text,#92400e);margin-bottom:8px">The following materials have quantities but no product assigned. Go to the <strong>Material Specs</strong> tab to assign catalog items.</p>
+          <p style="font-size:.82rem;color:var(--warning-text,#92400e);margin-bottom:8px">The following material types have quantities but no product assigned in the building spec. Go to the <strong>Material Specs</strong> tab to assign catalog items.</p>
           <ul style="font-size:.82rem;color:var(--warning-text,#92400e);margin:0;padding-left:18px">
             ${missingSpecs.map(m => `<li>${UI.esc(m)}</li>`).join('')}
           </ul>
@@ -1589,24 +1643,23 @@ function exportCSV() {
   // ── Suite sections
   templates.filter(t => tplCounts[t.id] > 0).forEach(t => {
     const count = tplCounts[t.id];
-    const specMap = specsToMap(t.specs || []);
     rows.push([q(`SUITE: ${t.name} — ${count} unit${count !== 1 ? 's' : ''}`)]);
     rows.push(COL_HDR);
     const doors = {}, trim = {};
     t.rooms.forEach(r => {
       r.doors.forEach(d => {
         const k = `${d.type} ${d.width_in || '?'}"`;
-        const spec = specMap.door[d.type];
+        const spec = commonSpecMap.door[d.type];
         if (!doors[k]) doors[k] = { eff: 0, spec };
         doors[k].eff += eff(d.qty_field, d.qty_drawing) * count;
-        if (!grandDoors[k]) grandDoors[k] = { qty: 0, spec };
+        if (!grandDoors[k]) grandDoors[k] = { qty: 0, spec: spec || null };
         grandDoors[k].qty += eff(d.qty_field, d.qty_drawing) * count;
       });
       r.trim.forEach(tr => {
-        const spec = specMap.trim[tr.type];
+        const spec = commonSpecMap.trim[tr.type];
         if (!trim[tr.type]) trim[tr.type] = { eff: 0, spec, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
         trim[tr.type].eff += eff(tr.lf_field, tr.lf_drawing) * count;
-        if (!grandTrim[tr.type]) grandTrim[tr.type] = { lf: 0, spec, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
+        if (!grandTrim[tr.type]) grandTrim[tr.type] = { lf: 0, spec: spec || null, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
         grandTrim[tr.type].lf += eff(tr.lf_field, tr.lf_drawing) * count;
       });
     });
@@ -1632,14 +1685,14 @@ function exportCSV() {
         const spec = commonSpecMap.door[d.type];
         if (!doors[k]) doors[k] = { eff: 0, spec };
         doors[k].eff += eff(d.qty_field, d.qty_drawing);
-        if (!grandDoors[k]) grandDoors[k] = { qty: 0, spec };
+        if (!grandDoors[k]) grandDoors[k] = { qty: 0, spec: spec || null };
         grandDoors[k].qty += eff(d.qty_field, d.qty_drawing);
       });
       r.trim.forEach(tr => {
         const spec = commonSpecMap.trim[tr.type];
         if (!trim[tr.type]) trim[tr.type] = { eff: 0, spec, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
         trim[tr.type].eff += eff(tr.lf_field, tr.lf_drawing);
-        if (!grandTrim[tr.type]) grandTrim[tr.type] = { lf: 0, spec, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
+        if (!grandTrim[tr.type]) grandTrim[tr.type] = { lf: 0, spec: spec || null, stockLen: spec?.stock_length_ft || STOCK_LENGTHS[tr.type] || null };
         grandTrim[tr.type].lf += eff(tr.lf_field, tr.lf_drawing);
       });
     });
